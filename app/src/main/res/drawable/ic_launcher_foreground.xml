@@ -1,0 +1,25 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- aire -->
+    <path
+        android:fillColor="#5E93B0"
+        android:pathData="M28,48 C44,42 64,42 80,48 C64,54 44,54 28,48 Z" />
+    <!-- agua -->
+    <path
+        android:fillColor="#2E7D8A"
+        android:pathData="M28,58 C44,52 64,52 80,58 C64,64 44,64 28,58 Z" />
+    <!-- tierra -->
+    <path
+        android:fillColor="#B5713B"
+        android:pathData="M28,68 C44,62 64,62 80,68 C64,74 44,74 28,68 Z" />
+    <!-- pin -->
+    <path
+        android:fillColor="#F3EEE3"
+        android:pathData="M46,32 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0 Z" />
+    <path
+        android:fillColor="#5C8A56"
+        android:pathData="M50.5,32 a3.5,3.5 0 1,0 7,0 a3.5,3.5 0 1,0 -7,0 Z" />
+</vector>
