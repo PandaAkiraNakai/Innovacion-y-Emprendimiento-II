@@ -102,13 +102,16 @@ private val fechaFmt = DateTimeFormatter.ofPattern("dd MMM", esCL).withZone(Zone
 
 fun fmt(value: Double, dec: Int = 2): String = String.format(esCL, "%,.${dec}f", value)
 
+fun fmtVal(value: Double, m: Metric): String = "${fmt(value, m.dec)} ${m.unit}".trim()
+
 fun fmtHora(ts: Long): String = horaFmt.format(Instant.ofEpochMilli(ts))
 
 fun fmtFecha(ts: Long): String = fechaFmt.format(Instant.ofEpochMilli(ts))
 
 fun desde(ts: Long): String {
-    val diff = NOW - ts
+    val diff = (LiveSim.readingTime - ts).coerceAtLeast(0)
     val min = (diff / 60_000L).toInt()
+    if (min < 1) return "recién"
     if (min < 60) return "hace $min min"
     val h = min / 60
     if (h < 24) return "hace $h h"

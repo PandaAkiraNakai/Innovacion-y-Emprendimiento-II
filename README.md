@@ -49,6 +49,18 @@ Cambia de zona desde el selector superior y toda la app —indicadores, sensores
 
 Cada medición se compara con su **límite normativo** y se clasifica en **Normal**, **Vigilancia** o **Crítico**.
 
+### En vivo ⏱️
+
+La demostración corre como si los sensores estuvieran reportando:
+
+- **Lecturas cada 5 minutos.** Los valores cambian en intervalos de 5 minutos (cuantizados al reloj real), con un indicador **EN VIVO** y la cuenta regresiva a la próxima lectura.
+- **Un aviso por hora.** Cada hora puede generarse una nueva alerta, con nivel **alto / medio / bajo** y un estado que evoluciona con el tiempo (**activa → reconocida → resuelta**). Además, cada zona muestra alertas **vigentes** derivadas de su lectura actual.
+- Todo es determinista y se calcula en el dispositivo: el feed se mantiene vivo sin servidor.
+
+### Mapa realista 🗺️
+
+El **Mapa** de cada zona es un mapa simulado con aspecto realista, dibujado con Canvas: relieve sombreado, curvas de nivel, cauce y tranque, caminos de acceso, el rajo de la faena, grilla de coordenadas, barra de escala y norte. Las estaciones son **pines** coloreados por estado (con halo pulsante en las críticas); al tocar una, ves su estado y sus alertas.
+
 ## Pantallas
 
 - **Resumen** — estado general de la zona, indicadores clave, tarjetas por sensor con tendencia y alertas recientes.

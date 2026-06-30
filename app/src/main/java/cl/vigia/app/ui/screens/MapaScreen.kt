@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import cl.vigia.app.data.LiveSim
 import cl.vigia.app.data.Repo
 import cl.vigia.app.data.Station
 import cl.vigia.app.data.Status
@@ -130,8 +131,8 @@ private fun StationRow(
     onClick: () -> Unit,
     onOpenSensor: (String) -> Unit,
 ) {
-    val status = Repo.stationStatus(zoneId, station.id)
-    val alertas = Repo.alertsOf(zoneId).filter { it.estacion == station.id }.sortedByDescending { it.ts }
+    val status = LiveSim.stationStatus(zoneId, station.id)
+    val alertas = LiveSim.alertsOf(zoneId).filter { it.estacion == station.id }.sortedByDescending { it.ts }
     val activas = alertas.count { it.estado != "resuelta" }
 
     Column(

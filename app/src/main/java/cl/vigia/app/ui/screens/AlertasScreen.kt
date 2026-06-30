@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import cl.vigia.app.data.LiveSim
 import cl.vigia.app.data.Repo
 import cl.vigia.app.data.Status
 import cl.vigia.app.ui.components.AlertRow
@@ -66,7 +67,7 @@ fun AlertasScreen(
     var tipo by remember { mutableStateOf("todos") }
     var estado by remember { mutableStateOf("todas") }
 
-    val zonaAlerts = Repo.alertsOf(zoneId)
+    val zonaAlerts = LiveSim.alertsOf(zoneId)
     val lista = zonaAlerts
         .filter { tipo == "todos" || it.tipo == tipo }
         .filter { estado == "todas" || it.estado == estado }

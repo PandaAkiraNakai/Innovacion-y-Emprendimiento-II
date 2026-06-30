@@ -149,43 +149,50 @@ object Repo {
     fun station(id: String): Station? = allStations.find { it.id == id }
     fun stationName(id: String): String = station(id)?.nombre ?: id
 
-    // -------------------- Series por zona --------------------
-    private val serieCache = HashMap<String, List<Point>>()
-    private val factorCache = HashMap<String, Double>()
+    // -------------------- Series por zona (en vivo) --------------------
+    // Las lecturas son una función continua del tiempo: cambian cada 5 minutos
+    // (cuantizadas por LiveSim), como si cada sensor reportara en ese intervalo.
 
     fun series(zoneId: String, tipo: String, metricKey: String, rango: String = "24h"): List<Point> {
-        val cacheKey = "$zoneId:$tipo:$metricKey:$rango"
-        serieCache[cacheKey]?.let { return it }
-        val m = metric(tipo, metricKey)
-        val z = zone(zoneId)
-        val (points, step) = when (rango) {
-            "7d" -> 7 to 24
-            "30d" -> 30 to 24
-            else -> 24 to 1
+        val end = LiveSim.readingTime
+        val (n, stepMs) = when (rango) {
+            "7d" -> 7 to DAY
+            "30d" -> 30 to DAY
+            else -> 24 to HOUR
         }
+        return (n - 1 downTo 0).map { k ->
+            val t = end - k * stepMs
+            Point(t, valueAt(zoneId, tipo, metricKey, t))
+        }
+    }
+
+    /** Valor de una métrica en un instante dado (cuantizado a pasos de 5 min). */
+    fun valueAt(zoneId: String, tipo: String, key: String, t: Long): Double {
+        val z = zone(zoneId)
+        val m = metric(tipo, key)
         val factor = domainFactor(zoneId, tipo)
-        val raw = buildSerieRaw(m, points, step, z.seed)
-        val s = raw.map { Point(it.t, applyFactor(it.v, m, factor)) }
-        serieCache[cacheKey] = s
-        return s
+        val step = t / LiveSim.FIVE_MIN
+        val dayFrac = (t % DAY).toDouble() / DAY
+        val diurnal = sin(dayFrac * 2 * PI + m.seed)
+        val drift = sin(t / (DAY * 2.0) * PI + z.seed + m.seed)
+        val noise = hashNoise(m.seed + z.seed * 7, step) - 0.5
+        var v = m.baseline + m.amp * (0.30 * diurnal + 0.22 * drift + 0.30 * noise)
+        if (hashNoise(m.seed * 3 + z.seed, step) > 0.96) v += m.amp * (if (m.lowerIsWorse) -0.7 else 0.9)
+        return applyFactor(v, m, factor)
     }
 
     /**
      * Factor de la zona para un dominio: escala las series para que la métrica
-     * principal de ese dominio quede en el nivel de severidad fijado por `intent`.
+     * principal de ese dominio quede, en promedio, en el nivel de severidad
+     * fijado por `intent`. Se deriva de la línea base (estable en el tiempo).
      */
     private fun domainFactor(zoneId: String, tipo: String): Double {
-        val key = "$zoneId:$tipo"
-        factorCache[key]?.let { return it }
         val z = zone(zoneId)
         val d = domain(tipo)!!
         val principal = d.metrics.first { it.key == d.principal }
-        val rawLast = buildSerieRaw(principal, 24, 1, z.seed).last().v
-        val naturalRatio = (rawLast / principal.limite).coerceAtLeast(1e-6)
+        val naturalRatio = (principal.baseline / principal.limite).coerceAtLeast(1e-6)
         val target = z.intent[tipo] ?: 0.6
-        val f = (target / naturalRatio).coerceIn(0.05, 12.0)
-        factorCache[key] = f
-        return f
+        return (target / naturalRatio).coerceIn(0.05, 12.0)
     }
 
     private fun applyFactor(v: Double, m: Metric, factor: Double): Double {
@@ -196,24 +203,8 @@ object Repo {
         return round(clamped, m.dec)
     }
 
-    private fun buildSerieRaw(m: Metric, points: Int, stepHours: Int, zoneSeed: Int): List<Point> {
-        val rand = rng(m.seed + points + zoneSeed * 7)
-        val out = ArrayList<Point>(points)
-        for (i in points - 1 downTo 0) {
-            val t = NOW - i.toLong() * stepHours * HOUR
-            val phase = (points - i).toDouble() / points
-            val diurnal = sin(phase * PI * 2 * (if (stepHours <= 1) 2 else 4))
-            val drift = sin(phase * PI * 1.3 + m.seed + zoneSeed)
-            val noise = rand() - 0.5
-            var v = m.baseline + m.amp * (0.45 * diurnal + 0.3 * drift + 0.5 * noise)
-            if (rand() > 0.93) v += m.amp * (if (m.lowerIsWorse) -0.7 else 1.1)
-            out.add(Point(t, v))
-        }
-        return out
-    }
-
     fun current(zoneId: String, tipo: String, key: String): Double =
-        series(zoneId, tipo, key, "24h").last().v
+        valueAt(zoneId, tipo, key, LiveSim.readingTime)
 
     // -------------------- Estados --------------------
     fun severityRatio(value: Double, m: Metric): Double =
@@ -250,74 +241,10 @@ object Repo {
         return Trend(diff.roundToInt(), dir)
     }
 
-    fun stationStatus(zoneId: String, stationId: String): Status {
-        val activas = alerts.filter { it.zona == zoneId && it.estacion == stationId && it.estado != "resuelta" }
-        return when {
-            activas.any { it.nivel == Status.CRIT } -> Status.CRIT
-            activas.any { it.nivel == Status.WARN } -> Status.WARN
-            else -> Status.OK
-        }
-    }
-
     private fun worst(estados: List<Status>): Status = when {
         estados.contains(Status.CRIT) -> Status.CRIT
         estados.contains(Status.WARN) -> Status.WARN
         else -> Status.OK
-    }
-
-    // -------------------- Alertas (derivadas de las mediciones de cada zona) --------------------
-    val alerts: List<Alert> by lazy { zones.flatMap { genAlerts(it) } }
-
-    fun alertsOf(zoneId: String): List<Alert> = alerts.filter { it.zona == zoneId }
-
-    private fun genAlerts(z: Zone): List<Alert> {
-        val out = ArrayList<Alert>()
-
-        // Activas: las mediciones de la zona que hoy están fuera de norma, de mayor a menor severidad.
-        data class Cand(val d: Domain, val m: Metric, val v: Double, val st: Status, val ratio: Double)
-        val cands = domains.flatMap { d ->
-            d.metrics.mapNotNull { m ->
-                val v = current(z.id, d.tipo, m.key)
-                val st = statusOf(v, m)
-                if (st == Status.OK) null else Cand(d, m, v, st, severityRatio(v, m))
-            }
-        }.sortedWith(compareByDescending<Cand> { it.st == Status.CRIT }.thenByDescending { it.ratio })
-
-        val activos = cands.take(4)
-        activos.forEachIndexed { i, c ->
-            val st = c.m.seed
-            val station = z.stations[st % z.stations.size]
-            val estado = if (c.st == Status.WARN && i == activos.lastIndex && activos.size > 1) "reconocida" else "activa"
-            val valTxt = fmtVal(c.v, c.m)
-            val titulo = when {
-                c.st == Status.CRIT && c.m.lowerIsWorse -> "${c.m.label} bajo el mínimo en ${c.d.nombre.lowercase()}"
-                c.st == Status.CRIT -> "${c.m.label} sobre el límite normativo"
-                c.m.lowerIsWorse -> "${c.m.label} acercándose al mínimo"
-                else -> "${c.m.label} cerca del límite permitido"
-            }
-            val limTxt = "${if (c.m.lowerIsWorse) "mínimo" else "límite"} ${fmt(c.m.limite, c.m.dec)} ${c.m.unit}".trim()
-            val detalle = "La ${station.nombre} registró $valTxt ($limTxt)."
-            val offset = (1 + (st % 16)) * HOUR + (st % 50) * 60_000L
-            out.add(Alert("${z.id}-${c.m.key}", z.id, c.d.tipo, c.st, estado, titulo, detalle, c.m.label, valTxt, station.id, NOW - offset))
-        }
-
-        // Episodios históricos resueltos de los dominios más sensibles de la zona.
-        val ordered = z.intent.entries.sortedByDescending { it.value }.map { it.key }
-        ordered.take(2).forEachIndexed { i, tipo ->
-            val d = domain(tipo)!!
-            val m = d.metrics.first { it.key == d.principal }
-            val v = if (m.lowerIsWorse) m.limite * 0.95 else m.limite * 1.07
-            val station = z.stations[(i + 1) % z.stations.size]
-            out.add(
-                Alert(
-                    "${z.id}-hist$i", z.id, tipo, Status.CRIT, "resuelta",
-                    "Episodio de ${d.nombre.lowercase()} controlado",
-                    "El ${m.label.lowercase()} superó el límite por unas horas; se aplicaron medidas de mitigación y volvió a la normalidad.",
-                    m.label, fmtVal(v, m), station.id, NOW - ((2 + i * 2) * DAY + 5 * HOUR),
-                ),
-            )
-        }
-        return out
     }
 
     // -------------------- Conjuntos de datos por zona --------------------
@@ -350,8 +277,6 @@ object Repo {
             )
         }
     }
-
-    private fun fmtVal(v: Double, m: Metric): String = "${fmt(v, m.dec)} ${m.unit}".trim()
 
     // -------------------- Informes --------------------
     fun buildCSV(zoneId: String, tipo: String): String {
@@ -406,6 +331,10 @@ private fun rng(seed: Int): () -> Double {
         ((t xor (t ushr 14)).toLong() and 0xFFFFFFFFL).toDouble() / 4294967296.0
     }
 }
+
+/** Valor pseudoaleatorio estable en [0,1) para un par (semilla, paso). */
+internal fun hashNoise(seed: Int, step: Long): Double =
+    rng(seed * 374761393 + step.toInt() * 668265263)()
 
 private fun round(v: Double, dec: Int): Double {
     var f = 1.0

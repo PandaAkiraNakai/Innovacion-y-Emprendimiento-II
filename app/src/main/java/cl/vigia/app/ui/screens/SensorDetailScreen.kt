@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import cl.vigia.app.data.LiveSim
 import cl.vigia.app.data.Repo
 import cl.vigia.app.data.fmt
 import cl.vigia.app.ui.components.AlertRow
@@ -85,7 +86,7 @@ fun SensorDetailScreen(zoneId: String, tipo: String, onBack: () -> Unit, onGoPer
     val ratioPrincipal = Repo.severityRatio(valPrincipal, principal)
     val trendPrincipal = Repo.trendOf(zoneId, tipo, d.principal)
 
-    val alertasDominio = Repo.alertsOf(zoneId).filter { it.tipo == tipo }.sortedByDescending { it.ts }
+    val alertasDominio = LiveSim.alertsOf(zoneId).filter { it.tipo == tipo }.sortedByDescending { it.ts }
 
     Column(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 12.dp),

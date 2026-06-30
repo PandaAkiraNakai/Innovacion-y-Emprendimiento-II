@@ -15,6 +15,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +31,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import cl.vigia.app.data.LiveSim
 import cl.vigia.app.data.Repo
 import cl.vigia.app.ui.screens.AlertasScreen
 import cl.vigia.app.ui.screens.DashboardScreen
@@ -67,6 +69,9 @@ fun VigiaApp() {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val toast: (String) -> Unit = { msg -> scope.launch { snackbar.showSnackbar(msg) } }
+
+    // Motor en vivo: mantiene la hora de lectura al día (datos nuevos cada 5 min).
+    LaunchedEffect(Unit) { LiveSim.run() }
 
     Scaffold(
         containerColor = Paper,

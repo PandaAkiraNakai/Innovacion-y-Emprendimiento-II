@@ -29,7 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import cl.vigia.app.data.NOW
+import cl.vigia.app.data.LiveSim
 import cl.vigia.app.data.Repo
 import cl.vigia.app.data.Status
 import cl.vigia.app.data.fmtHora
@@ -37,6 +37,7 @@ import cl.vigia.app.ui.components.AlertRow
 import cl.vigia.app.ui.components.Eyebrow
 import cl.vigia.app.ui.components.IconBadge
 import cl.vigia.app.ui.components.KpiCard
+import cl.vigia.app.ui.components.LiveBadge
 import cl.vigia.app.ui.components.SectionCard
 import cl.vigia.app.ui.components.ScreenHeader
 import cl.vigia.app.ui.components.SensorCard
@@ -62,9 +63,9 @@ fun DashboardScreen(
     val zone = Repo.zone(zoneId)
     val estados = Repo.domains.map { Repo.domainStatus(zoneId, it.tipo) }
     val general = Repo.zoneStatus(zoneId)
-    val activas = Repo.alertsOf(zoneId).filter { it.estado == "activa" }
+    val activas = LiveSim.alertsOf(zoneId).filter { it.estado == "activa" }
     val enNorma = estados.count { it == Status.OK }
-    val recientes = Repo.alertsOf(zoneId).sortedByDescending { it.ts }.take(3)
+    val recientes = LiveSim.alertsOf(zoneId).sortedByDescending { it.ts }.take(3)
 
     Column(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 22.dp),
@@ -80,7 +81,10 @@ fun DashboardScreen(
         Spacer(Modifier.height(20.dp))
 
         ZoneSelector(zoneId, onSelectZone)
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(16.dp))
+
+        LiveBadge()
+        Spacer(Modifier.height(16.dp))
 
         // Indicadores 2x2
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -100,7 +104,7 @@ fun DashboardScreen(
                 }
             }
             KpiCard("Última medición", Modifier.weight(1f), icon = Icons.Outlined.Schedule) {
-                Text(fmtHora(NOW), style = MonoValue)
+                Text(fmtHora(LiveSim.readingTime), style = MonoValue)
             }
         }
         Spacer(Modifier.height(26.dp))
