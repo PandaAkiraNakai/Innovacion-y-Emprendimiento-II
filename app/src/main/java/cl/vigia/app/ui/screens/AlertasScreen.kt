@@ -44,6 +44,7 @@ import cl.vigia.app.ui.components.KpiCard
 import cl.vigia.app.ui.components.SectionCard
 import cl.vigia.app.ui.components.ScreenHeader
 import cl.vigia.app.ui.components.SegmentedControl
+import cl.vigia.app.ui.components.ZoneSelector
 import cl.vigia.app.ui.theme.Crit
 import cl.vigia.app.ui.theme.MonoValue
 import cl.vigia.app.ui.theme.Moss
@@ -56,31 +57,40 @@ private val ESTADOS = listOf(
 )
 
 @Composable
-fun AlertasScreen(onOpenSensor: (String) -> Unit, onGoPerfil: () -> Unit) {
+fun AlertasScreen(
+    zoneId: String,
+    onSelectZone: (String) -> Unit,
+    onOpenSensor: (String) -> Unit,
+    onGoPerfil: () -> Unit,
+) {
     var tipo by remember { mutableStateOf("todos") }
     var estado by remember { mutableStateOf("todas") }
 
-    val lista = Repo.alerts
+    val zonaAlerts = Repo.alertsOf(zoneId)
+    val lista = zonaAlerts
         .filter { tipo == "todos" || it.tipo == tipo }
         .filter { estado == "todas" || it.estado == estado }
         .sortedByDescending { it.ts }
 
-    val activas = Repo.alerts.filter { it.estado == "activa" }
+    val activas = zonaAlerts.filter { it.estado == "activa" }
     val criticas = activas.count { it.nivel == Status.CRIT }
     val vigilancia = activas.count { it.nivel == Status.WARN }
-    val resueltas = Repo.alerts.count { it.estado == "resuelta" }
+    val resueltas = zonaAlerts.count { it.estado == "resuelta" }
 
     Column(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 22.dp),
     ) {
         ScreenHeader(
             eyebrow = "Centro de alertas",
-            title = "Alertas del sector",
+            title = "Alertas de la zona",
             subtitle = "Avisos cuando una medición se acerca o supera el límite normativo. Las críticas exigen atención inmediata.",
             action = {
                 IconBadge(Icons.Outlined.NotificationsActive, MossSoft, Moss, boxSize = 48.dp, corner = 16.dp, iconSize = 20.dp, contentDescription = "Configurar avisos", modifier = Modifier.clip(CircleShape).clickable { onGoPerfil() })
             },
         )
+        Spacer(Modifier.height(20.dp))
+
+        ZoneSelector(zoneId, onSelectZone)
         Spacer(Modifier.height(22.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -65,26 +65,27 @@ import cl.vigia.app.ui.theme.MossSoft
 private val RANGOS = listOf("24h" to "24 h", "7d" to "7 días", "30d" to "30 días")
 
 @Composable
-fun SensorDetailScreen(tipo: String, onBack: () -> Unit, onGoPerfil: () -> Unit) {
+fun SensorDetailScreen(zoneId: String, tipo: String, onBack: () -> Unit, onGoPerfil: () -> Unit) {
     val d = Repo.domain(tipo) ?: return
+    val zone = Repo.zone(zoneId)
     var metricKey by remember(tipo) { mutableStateOf(d.principal) }
     var rango by remember(tipo) { mutableStateOf("24h") }
 
     val metric = Repo.metric(tipo, metricKey)
-    val serie = Repo.series(tipo, metricKey, rango)
+    val serie = Repo.series(zoneId, tipo, metricKey, rango)
     // El valor y el estado se derivan de la MISMA serie que se grafica,
     // para que el número, el estado y el punto final coincidan con el rango.
     val valActual = serie.last().v
     val estado = Repo.statusOf(valActual, metric)
-    val general = Repo.domainStatus(tipo)
+    val general = Repo.domainStatus(zoneId, tipo)
 
     val principal = Repo.metric(tipo, d.principal)
-    val valPrincipal = Repo.current(tipo, d.principal)
+    val valPrincipal = Repo.current(zoneId, tipo, d.principal)
     val estadoPrincipal = Repo.statusOf(valPrincipal, principal)
     val ratioPrincipal = Repo.severityRatio(valPrincipal, principal)
-    val trendPrincipal = Repo.trendOf(tipo, d.principal)
+    val trendPrincipal = Repo.trendOf(zoneId, tipo, d.principal)
 
-    val alertasDominio = Repo.alerts.filter { it.tipo == tipo }.sortedByDescending { it.ts }
+    val alertasDominio = Repo.alertsOf(zoneId).filter { it.tipo == tipo }.sortedByDescending { it.ts }
 
     Column(
         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 12.dp),
@@ -94,7 +95,7 @@ fun SensorDetailScreen(tipo: String, onBack: () -> Unit, onGoPerfil: () -> Unit)
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = Ink)
             }
-            Eyebrow("Resumen · Sensor")
+            Eyebrow("${zone.nombre} · Sensor")
         }
         Spacer(Modifier.height(4.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
@@ -194,7 +195,7 @@ fun SensorDetailScreen(tipo: String, onBack: () -> Unit, onGoPerfil: () -> Unit)
         d.metrics.chunked(2).forEach { fila ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 fila.forEach { m ->
-                    MetricTile(tipo, m, Repo.current(tipo, m.key), Modifier.weight(1f))
+                    MetricTile(tipo, m, Repo.current(zoneId, tipo, m.key), Modifier.weight(1f))
                 }
                 if (fila.size == 1) Spacer(Modifier.weight(1f))
             }

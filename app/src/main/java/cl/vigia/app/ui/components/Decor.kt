@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cl.vigia.app.data.Repo
 import cl.vigia.app.data.Status
+import cl.vigia.app.data.Zone
 import cl.vigia.app.ui.theme.Agua
 import cl.vigia.app.ui.theme.Aire
 import cl.vigia.app.ui.theme.Body
@@ -142,9 +143,15 @@ fun TerrainHero(modifier: Modifier = Modifier) {
 
 /* ----------------------- Mapa esquemático de estaciones ----------------------- */
 @Composable
-fun StationMap(modifier: Modifier = Modifier) {
+fun StationMap(
+    zone: Zone,
+    modifier: Modifier = Modifier,
+    selectedStationId: String? = null,
+) {
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontFamily = Body, fontWeight = FontWeight(600), fontSize = 10.sp, color = InkSoft)
+    // Pequeñas variaciones de terreno según la zona, para que cada mapa sea distinto.
+    val s = (zone.seed % 7) / 7f
     Canvas(modifier) {
         val w = size.width
         val h = size.height
@@ -157,38 +164,44 @@ fun StationMap(modifier: Modifier = Modifier) {
         // Curvas de nivel
         val contourColor = Color(0xFFCDBF9F)
         for (k in 0..3) {
-            val off = h * (0.18f + k * 0.16f)
+            val off = h * (0.16f + s * 0.06f + k * 0.16f)
             val path = Path().apply {
                 moveTo(-10f, off)
-                cubicTo(w * 0.25f, off - h * 0.08f, w * 0.55f, off + h * 0.05f, w + 10f, off - h * 0.06f)
+                cubicTo(w * 0.25f, off - h * (0.08f + s * 0.04f), w * 0.55f, off + h * 0.05f, w + 10f, off - h * 0.06f)
             }
             drawPath(path, contourColor.copy(alpha = 0.8f), style = Stroke(1.dp.toPx()))
         }
 
-        // Faena (esquema)
+        // Faena (esquema) — su posición depende de la estación más expuesta de la zona.
+        val faenaX = 64f + s * 12f
         val faena = Path().apply {
-            moveTo(px(70f), py(14f)); lineTo(px(86f), py(14f)); lineTo(px(83f), py(26f)); lineTo(px(73f), py(26f)); close()
+            moveTo(px(faenaX), py(13f)); lineTo(px(faenaX + 16f), py(13f))
+            lineTo(px(faenaX + 13f), py(25f)); lineTo(px(faenaX + 3f), py(25f)); close()
         }
         drawPath(faena, Color(0xFFC9B58E).copy(alpha = 0.55f))
 
         // Cauce (agua)
         val river = Path().apply {
-            moveTo(px(8f), py(6f))
-            cubicTo(px(18f), py(28f), px(10f), py(46f), px(26f), py(58f))
-            cubicTo(px(36f), py(66f), px(46f), py(70f), px(60f), py(72f))
+            moveTo(px(6f + s * 6f), py(6f))
+            cubicTo(px(18f), py(28f), px(10f + s * 8f), py(46f), px(26f), py(58f))
+            cubicTo(px(36f), py(66f), px(46f + s * 6f), py(70f), px(64f), py(74f))
         }
         drawPath(river, Color(0xFF7FB6BE).copy(alpha = 0.7f), style = Stroke(2.6.dp.toPx(), cap = StrokeCap.Round))
 
         // Estaciones
-        Repo.stations.forEach { st ->
-            val status = Repo.stationStatus(st.id)
+        zone.stations.forEach { st ->
+            val status = Repo.stationStatus(zone.id, st.id)
             val color = statusColor(status)
             val c = Offset(px(st.x), py(st.y))
+            val sel = st.id == selectedStationId
+            if (sel) {
+                drawCircle(color.copy(alpha = 0.16f), 16.dp.toPx(), c)
+            }
             if (status != Status.OK) {
                 drawCircle(color.copy(alpha = 0.4f), 9.dp.toPx(), c, style = Stroke(1.dp.toPx()))
             }
-            drawCircle(Paper, 6.dp.toPx(), c)
-            drawCircle(color, 6.dp.toPx(), c, style = Stroke(1.6.dp.toPx()))
+            drawCircle(Paper, if (sel) 7.dp.toPx() else 6.dp.toPx(), c)
+            drawCircle(color, if (sel) 7.dp.toPx() else 6.dp.toPx(), c, style = Stroke((if (sel) 2.2f else 1.6f).dp.toPx()))
             drawCircle(color, 2.6.dp.toPx(), c)
             val name = st.nombre.removePrefix("Estación ")
             val m = measurer.measure(name, labelStyle)

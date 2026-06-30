@@ -47,6 +47,7 @@ import cl.vigia.app.ui.components.SectionCard
 import cl.vigia.app.ui.components.ScreenHeader
 import cl.vigia.app.ui.components.SegmentedControl
 import cl.vigia.app.ui.components.Tag
+import cl.vigia.app.ui.components.ZoneSelector
 import cl.vigia.app.ui.theme.InkFaint
 import cl.vigia.app.ui.theme.InkSoft
 import cl.vigia.app.ui.theme.LineStrong
@@ -60,15 +61,16 @@ private fun slug(s: String): String =
     s.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
 
 @Composable
-fun DatosScreen(toast: (String) -> Unit) {
+fun DatosScreen(zoneId: String, onSelectZone: (String) -> Unit, toast: (String) -> Unit) {
     val ctx = LocalContext.current
+    val zone = Repo.zone(zoneId)
     var q by remember { mutableStateOf("") }
     var tipo by remember { mutableStateOf("todos") }
-    var estacion by remember { mutableStateOf("todas") }
+    var estacion by remember(zoneId) { mutableStateOf("todas") }
     var periodo by remember { mutableStateOf("todos") }
     var formato by remember { mutableStateOf("todos") }
 
-    val lista = Repo.datasets.filter { d ->
+    val lista = Repo.datasetsOf(zoneId).filter { d ->
         (tipo == "todos" || d.tipo == tipo) &&
             (estacion == "todas" || d.estacion == estacion) &&
             (periodo == "todos" || d.periodo == periodo) &&
@@ -78,14 +80,14 @@ fun DatosScreen(toast: (String) -> Unit) {
 
     fun descargar(d: Dataset) {
         val esJSON = d.formato == "JSON"
-        val text = if (esJSON) Repo.buildJSON(d.tipo) else Repo.buildCSV(d.tipo)
+        val text = if (esJSON) Repo.buildJSON(zoneId, d.tipo) else Repo.buildCSV(zoneId, d.tipo)
         val ext = if (esJSON) "json" else "csv"
         val mime = if (esJSON) "application/json" else "text/csv"
-        shareReport(ctx, "vigia_${d.tipo}_${slug(d.periodo)}.$ext", text, mime)
+        shareReport(ctx, "vigia_${zoneId}_${d.tipo}_${slug(d.periodo)}.$ext", text, mime)
         toast("Informe generado: ${d.titulo}")
     }
 
-    val estacionOpc = listOf("todas" to "Todas") + Repo.stations.map { it.id to it.nombre }
+    val estacionOpc = listOf("todas" to "Todas") + zone.stations.map { it.id to it.nombre }
     val periodoOpc = listOf("todos" to "Cualquiera") + Repo.periodos.map { it to it }
 
     Column(
@@ -94,8 +96,11 @@ fun DatosScreen(toast: (String) -> Unit) {
         ScreenHeader(
             eyebrow = "Transparencia ambiental",
             title = "Datos abiertos",
-            subtitle = "Descarga los registros de monitoreo en formato abierto (CSV o JSON) para analizarlos, compartirlos o respaldar un reclamo.",
+            subtitle = "Descarga los registros de monitoreo de la zona en formato abierto (CSV o JSON) para analizarlos, compartirlos o respaldar un reclamo.",
         )
+        Spacer(Modifier.height(20.dp))
+
+        ZoneSelector(zoneId, onSelectZone)
         Spacer(Modifier.height(20.dp))
 
         // Filtros

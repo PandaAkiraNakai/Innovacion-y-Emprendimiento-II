@@ -42,6 +42,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import cl.vigia.app.R
+import cl.vigia.app.data.Repo
 import cl.vigia.app.ui.components.Eyebrow
 import cl.vigia.app.ui.components.TerrainHero
 import cl.vigia.app.ui.theme.InkFaint
@@ -83,8 +84,8 @@ fun LoginScreen(onEnter: () -> Unit) {
                     )
                     Spacer(Modifier.height(16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(26.dp)) {
-                        Kpi("4", "dominios")
-                        Kpi("4", "estaciones")
+                        Kpi("${Repo.zones.size}", "zonas")
+                        Kpi("${Repo.zones.sumOf { it.stations.size }}", "estaciones")
                         Kpi("24/7", "mediciones")
                     }
                 }

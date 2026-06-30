@@ -72,14 +72,15 @@ private val SENSIBILIDAD = listOf(
 )
 
 @Composable
-fun PerfilScreen(toast: (String) -> Unit) {
+fun PerfilScreen(zoneId: String, toast: (String) -> Unit) {
+    val zone = Repo.zone(zoneId)
     val domToggles = remember { mutableStateMapOf("agua" to true, "aire" to true, "tierra" to true, "ruido" to false) }
     val canales = remember { mutableStateMapOf("correo" to true, "push" to true, "sms" to false) }
     var sensibilidad by remember { mutableStateOf("ambas") }
 
     var asunto by remember { mutableStateOf("") }
     var temaReporte by remember { mutableStateOf("aire") }
-    var estacionReporte by remember { mutableStateOf("norte") }
+    var estacionReporte by remember(zoneId) { mutableStateOf(zone.stations.first().id) }
     var detalle by remember { mutableStateOf("") }
     var ubicacion by remember { mutableStateOf(true) }
 
@@ -215,9 +216,9 @@ fun PerfilScreen(toast: (String) -> Unit) {
                 }
             }
             Spacer(Modifier.height(14.dp))
-            FieldLabel("Estación cercana")
+            FieldLabel("Estación cercana · ${zone.nombre}")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Repo.stations.forEach { s ->
+                zone.stations.forEach { s ->
                     ChipToggle(s.nombre.removePrefix("Estación "), estacionReporte == s.id, { estacionReporte = s.id }, selectedBg = Moss)
                 }
             }
@@ -252,7 +253,7 @@ fun PerfilScreen(toast: (String) -> Unit) {
                         toast("Completa el asunto y la descripción del reporte")
                     } else {
                         toast("Reporte enviado a la Junta de Vecinos")
-                        asunto = ""; detalle = ""; temaReporte = "aire"; estacionReporte = "norte"; ubicacion = true
+                        asunto = ""; detalle = ""; temaReporte = "aire"; estacionReporte = zone.stations.first().id; ubicacion = true
                     }
                 },
                 modifier = Modifier.fillMaxWidth().height(50.dp),

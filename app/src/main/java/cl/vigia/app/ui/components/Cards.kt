@@ -62,13 +62,13 @@ fun TrendChip(trend: Trend) {
 }
 
 @Composable
-fun SensorCard(tipo: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun SensorCard(zoneId: String, tipo: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val d = Repo.domain(tipo)!!
     val metric = Repo.metric(tipo, d.principal)
-    val value = Repo.current(tipo, d.principal)
-    val status = Repo.domainStatus(tipo)
-    val trend = Repo.trendOf(tipo, d.principal)
-    val serie = Repo.series(tipo, d.principal, "24h")
+    val value = Repo.current(zoneId, tipo, d.principal)
+    val status = Repo.domainStatus(zoneId, tipo)
+    val trend = Repo.trendOf(zoneId, tipo, d.principal)
+    val serie = Repo.series(zoneId, tipo, d.principal, "24h")
 
     Column(
         modifier = modifier.cardSurface().clickable { onClick() }.padding(20.dp),
