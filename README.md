@@ -13,6 +13,10 @@
 </p>
 
 ---
+## Link Video Informativo
+
+(https://drive.google.com/file/d/12aFDi2_q-0USiuUlXvFxT20hr_X-ICPh/view?usp=sharing)
+
 
 ## 📲 Descarga rápida
 
